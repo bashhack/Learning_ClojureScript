@@ -451,10 +451,62 @@
 
 ;; These latest changes expand upon the existing app in the `om-tut` directory.
 
+;; A core feature of `bidi` are its routing tables. We used them on server and
+;; client in our project to handle the behavior at each endpoint route.
+;; On the server, our table mapped paths to ring handler functions; on the
+;; client side, we mapped paths to Om component constructor functions.
+
+;; One of the biggest refactoring changes we made was to our `om/root`
+;; function, bringing it into a main function to handle the more complex
+;; setup being used now. We also brought in a library (Accountant) to handle
+;; some of the HTML5 `pushState` API. Accountant's config take two settings:
+;; `nav-handler` - a function of one argument when navigation occurs
+;; `path-handler` - a function of one argument that should return true
+;;  if the user navigates to a URL that the SPA will handle
+;; In our app, when a user clicks on a link, we receive the new path as
+;; an argument. We match the route with bidi and then store that route in
+;; app-state under `:active-component`. Our root component (passed
+;; to `om/root`) is no longer a `todos-list` (as it was in our first iteration)
+;; but a `container` component that is simply an `om/build` of the
+;; `:active-component`.
+
 ;; ---------
 ;; pushState
 ;; ---------
 
+;; The `pushState` API (part of the HTML5 spec) tells the browser to do two
+;; things:
+;; - Set the current URL in the navigation bar without actually making a
+;;   request for that URL
+;; - Update the back button history, so the back button still works as expected
+
+;; The `pushState` is essential for a SPA, as it decouples the page that is
+;; displayed from the URL the user sees.
+
+;; The API is not without its quirks though. If we go to our `/settings` route
+;; and close our browser, only to reopen it at the same route, we'll get a 404.
+
+;; This is because Figwheel serves static files, and there isn't a
+;; `settings.html` file available on disk.
+
+;; PRO TIP: Your server should be able to handle requests from the fake URLs
+;;          used on the client side. A reasonable implementation might
+;;          recognize all client-side URLs and serve the SPA HTML.
+
 ;; ----------
 ;; Navigation
 ;; ----------
+
+;; Now might be a good idea to discuss what Accountant is doing for us
+;; in this app. Accountant wraps Google Closure's "html5 History" library,
+;; which abstracts low-level differences across browsers and generates
+;; a synthetic `navigate` event when the user causes the page URL to change.
+
+;; The `accountant` configuration sets up an event listener for the closure's
+;; `navigate`. Because we're working within a SPA, we don't want the
+;; browser to send a real HTTP request for a URL change to `/settings`.
+;; Accountant's `:path-exists?` handler is used to decide which URLs are
+;; handled by the SPA and calls `.preventDefault()` on the navigate event.
+;; Then, during our `:nav-handler`, we match the route using bidi and `update`
+;; the active component. Om triggers a re-render as usual and renders the
+;; new page.
