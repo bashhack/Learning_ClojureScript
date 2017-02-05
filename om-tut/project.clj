@@ -6,14 +6,37 @@
 
   :min-lein-version "2.7.1"
 
-  :dependencies [[org.clojure/clojure "1.8.0"]
-                 [org.clojure/clojurescript "1.9.229"]
-                 [org.clojure/core.async "0.2.391"
+  :dependencies [[org.clojure/clojurescript "1.7.170"]
+                 [org.clojure/core.async "0.2.374"
                   :exclusions [org.clojure/tools.reader]]
                  [cljsjs/react "15.3.1-0"]
                  [cljsjs/react-dom "15.3.1-0"]
-                 [sablono "0.7.3"]
-                 [org.omcljs/om "1.0.0-alpha46"]]
+                 [sablono "0.3.6"]
+                 [org.omcljs/om "1.0.0-alpha46"]
+                 [bidi "2.0.3"]
+                 [cljs-ajax "0.5.3"]
+                 [clj-http "2.1.0"]
+                 [com.cognitect/transit-clj "0.8.259"]
+                 [org.clojure/clojure "1.7.0"]
+                 [ring "1.4.0"]
+                 [ring/ring-jetty-adapter "1.4.0"]
+                 [venantius/accountant "0.1.7"]]
+
+  ;; Unable to run project with these deps - TODO: Find out why!
+  ;; :dependencies [[org.clojure/clojure "1.8.0"]
+  ;;                [org.clojure/clojurescript "1.9.229"]
+  ;;                [org.clojure/core.async "0.2.391"
+  ;;                 :exclusions [org.clojure/tools.reader]]
+  ;;                [cljsjs/react "15.3.1-0"]
+  ;;                [cljsjs/react-dom "15.3.1-0"]
+  ;;                [sablono "0.7.3"]
+  ;;                [org.omcljs/om "1.0.0-alpha46"]
+  ;;                [bidi "2.0.3"]
+  ;;                [cljs-ajax "0.5.8"]
+  ;;                [clj-http "3.4.1"]
+  ;;                [ring "1.6.0-beta7"]
+  ;;                [ring/ring-jetty-adapter "1.6.0-beta7"]
+  ;;                [com.cognitect/transit-clj "0.8.297"]]
 
   :plugins [[lein-figwheel "0.5.8"]
             [lein-cljsbuild "1.1.4" :exclusions [[org.clojure/clojure]]]]
