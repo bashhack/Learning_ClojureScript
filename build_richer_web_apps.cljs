@@ -261,4 +261,237 @@
 
 ;; Currently, all queries return a set of vectors, which can be awkward when
 ;; we know the query should evaluate and return a single matching result.
-;;
+;; As we've alluded to, but haven't explicitly stated, a query returns one
+;; or more variables:
+
+(d/q '[:find ?person ?movie :in ...])
+
+;; After `:find`, one or more variables (they start with `?`) are listed. The
+;; query returns a set of vectors, where each vector's length matches the
+;; number of variables to return.
+
+;; We can customize our results in a number of ways:
+
+(d/q '[:find ?p . :in $ ?name :where [?e :person/name ?name]]
+     @conn "Arnold Schwarzenegger")
+
+;; Here, the `.` after `?p` specifies that we want only the first result:
+
+(d/q [:find [?p ...]
+      :in $ ?title
+      :where [?mov :movie/actors ? p] [?mov :movie/name ?title]]
+     @conn "Top Gun")
+
+;; We wrap `?p` in a vector ending with `...` to specify that we want the
+;; collection of values `?p` can take on. This is nicer to write compared to:
+(map first results)
+
+;; We can also compose a pull by returning a collection:
+
+(d/q '[:find [(pull ?p [:person/name])...]
+       :in $ ?name
+       :where [?mov :movie/actors ?p] [?mov :movie/title "Top Gun"]]
+     @conn)
+
+
+;; -----------
+;; -----------
+;; Unification
+;; -----------
+;; -----------
+
+
+;; The `:where` clause of a query takes one or more EAVT, and the query returns
+;; all values in the DB that satisfy the constraints.
+
+(d/q '[:find (pull ?movie [:movie/title])
+       :in $
+       :where [?movie :movie/title]]
+     @conn)
+
+;; Note that our `:where` clause tuple is short, including only two values
+;; corresponding to E and A (of EAVT). This means that the value is
+;; unconstrained and can take any value, therefore it returns all
+;; `:movie/title` values in the DB.
+;; A full `:where` tuple can optionally include all three items (or fewer)
+;; in EAV.
+;; If we want to see all attributes that take on a specific value:
+
+(d/q '[:find ?a
+       :in $ ?tx
+       :where [_ ?a "Top Gun"]]
+     @conn)
+
+;; The above query finds all attributes that take the value "Top Gun", and
+;; it (expectedly) returns `:movie/title`. Note that we use a variable to refer
+;; to an attribute.
+
+;; To find all actors in the database:
+
+(d/q '[:find ?act
+       :in $
+       :where [_ :movie/actors ?act]]
+     @conn)
+
+;; The `_` is used idiomatically to mean that the value can be anything, and
+;; we don't care about the result. The `?act` param binds to all tuples where
+[eid :movie/actor ?act]
+;; then our `:find` returns `?act`, so it returns the list of all actors.
+
+;; Here, another query, this time to find all movies where the director acts
+;; in the movie:
+
+(d/q '[:find (pull ?p [:person/name])
+       :in $
+       :where [?mov :movie/actors ?p] [?mov :movie/director ?p]]
+     @conn)
+
+;; In the above example, we have employed unification - meaning, a variable
+;; must take the same value in all clauses at the same time.
+
+;; Finally, if we wanted to find all people who have ever acted and directed:
+
+(d/q '[:find ?p
+       :in $
+       :where [?mov1 :movie/actors ?p] [?mov2 :movie/director ?p]]
+     @conn)
+
+
+;; ---------------------
+;; ---------------------
+;; Predicate expressions
+;; ---------------------
+;; ---------------------
+
+
+;; In the last query, our variables `?mov1` and `?mov2` are able to take
+;; on separate values. It's still possible for them to return the same value
+;; because there's not yet a contraint that the variables must be equal.
+;; If we want to add this predicate, we could simply write:
+
+(d/q '[:find
+       (pull ?p [:person/name])
+       (pull ?mov1 [:movie/title])
+       (pull ?mov2 [:movie/title])
+       :in $
+       :where
+       [?mov1 :movie/actors ?p]
+       [?mov2 :movie/director ?p]
+       [(!= ?mov1 ?mov2)]]
+     @conn)
+
+
+;; -------
+;; -------
+;; Indexes
+;; -------
+;; -------
+
+
+;; To make queries fast, Datascript maintains several indicies, which the query
+;; planner uses to optimize queries. These are named `eavt`, `aevt`, and `avet`.
+;; Each index is sorted by the order declared.
+
+;; For example, when looking up an actor by name, you'd use a `:where` clause
+;; that looks like:
+[?p :person/name ?name]
+;; We know the attribute and the value (their name), but we need to know the
+;; entity ID. Therefore, we traverse the `avet` index, jumping to
+;; `:person/name` and then to the value of their name.
+
+;; Most of the time, the query planner does a good job - sometimes we want to
+;; get raw access to the datoms, for speed/performance.
+
+(d/datoms @conn :eavt)
+
+;; We can also provide a starting point to filter the results:
+
+(->> (d/datoms @conn :avet :movie/actors)
+     (map identity))
+
+;; This will return a sorted set of datoms that use `:movie/actors`.
+;; The `d/datoms` param returns a custom iterator, so we use (map identity)
+;; to convert the values back to a sequence.
+
+
+;; ------------------------------------------
+;; ------------------------------------------
+;; Differences between Datomic and Datascript
+;; ------------------------------------------
+;; ------------------------------------------
+
+
+;; While they are both very similar, they aren't 100% compatible, as Datomic
+;; has full time travelling. It stores every datom ever seen, so you can query
+;; for things like "Show me all values this attribute has ever taken on,
+;; and return the transaction IDs when changed."
+;; Conversely, Datascript is designed to be in-memory, and as it targets
+;; browsers, constant memory use is a must - therefore, there are no historical
+;; datoms preserved.
+
+
+;; ---------------
+;; ---------------
+;; Why Datascript?
+;; ---------------
+;; ---------------
+
+
+;; Our biggest use case for Datascript's power is in managing a large amount of
+;; state within a SPA. Not every SPA needs a DB, but when it's necessary in
+;; ClojureScript, Datascript is the go-to solution.
+
+
+;; ----------------------------------------------------------------------------
+;; ----------------------------------------------------------------------------
+;; ----------------------------------------------------------------------------
+
+
+;; --------------------
+;; --------------------
+;; Improving load times
+;; --------------------
+;; --------------------
+
+
+;; Our SPAs can quickly balloon into large apps, containing upwards of 1MB of
+;; JavaScript, which brings with it a host of concerns about download speed,
+;; parsing, and page speed. ClojureScript provides us with a few tricks to help
+;; improve our load time and reduce the download size of our SPA.
+
+
+;; ---------------------
+;; ---------------------
+;; ClojureScript modules
+;; ---------------------
+;; ---------------------
+
+
+;; ClojureScript modules are a Google Closure Compiler option for breaking
+;; apart a ClojureScript application into multiple `.js` files. This helps us
+;; avoid loading unnecessary files by ensuring that only what needs to be
+;; downloaded to the client for any given page render is served.
+
+
+;; ---------------------
+;; ---------------------
+;; Preparing for modules
+;; ---------------------
+;; ---------------------
+
+
+;; Typically the biggest gains come from splitting third-party libraries into
+;; modules because they usually contain more code than our own Om components.
+
+;; ClojureScript modules split at the namespace level, meaning that the
+;; contents of a single namespace are all in one module.
+
+;; To experiment with ClojureScript modules, we'll split an app into "inner"
+;; and "outer" modules.
+
+
+;; ---------------
+;; ---------------
+;; Getting started
+;; ---------------
+;; ---------------
