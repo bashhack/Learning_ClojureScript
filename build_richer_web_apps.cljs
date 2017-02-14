@@ -490,8 +490,66 @@
 ;; and "outer" modules.
 
 
-;; ---------------
-;; ---------------
-;; Getting started
-;; ---------------
-;; ---------------
+;; -------------------------------
+;; -------------------------------
+;; .cljc and server-side rendering
+;; -------------------------------
+;; -------------------------------
+
+
+;; As we have noted throughout, Clojure and ClojureScript are not the same,
+;; they are distinct languages. However, as of Clojure 1.7, we can use a
+;; feature called "Reader Conditionals", which allows files to be loaded
+;; by both Clojure and ClojureScript.
+
+;; -----
+;; .cljc
+;; -----
+
+;; Clojure files that end in `.cljc` can be loaded by both languages,
+;; but they shouldn't directly reference "host interop" forms because those
+;; aren't shared across both languages.
+
+;; `.cljc` files can reference "host interop" via reader conditionals.
+;; These can be thought of as `cond` or `case`, except the branches
+;; are taken based on whether the compiler loading the file is Clojure or
+;; ClojureScript.
+
+;; For a very basic example:
+
+(defn str->int [s]
+  #?(:clj (java.lang.Integer/parseInt s)
+     :cljs (js/parseInt s)))
+
+
+;; ---------------------------
+;; ---------------------------
+;; Schema and input validation
+;; ---------------------------
+;; ---------------------------
+
+
+;; A great use case for `.cljc` is in shared validation code across client and
+;; server. In typical web apps, we end up duplicating business logic
+;; for validation across our JavaScript front end and our server code.
+
+;; A popular library for addressing this problem is Schema (which we'll see
+;; more of later).
+
+
+;; ---------------------
+;; ---------------------
+;; Server-side rendering
+;; ---------------------
+;; ---------------------
+
+
+;; To look at this in-depth, we'll create a SPA which uses a library called
+;; Foam to handle server-side rendering.
+
+;; While Foam might go away, be merged into Om, or undergo any number of other
+;; changes, the technique behind the library is a pattern which is most
+;; important.
+
+;; To experiment with this concept, I have created a project in the directory
+;; titled `ssr`
